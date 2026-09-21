@@ -1,0 +1,52 @@
+name = "links"
+main = "src/index.ts"
+compatibility_date = "2026-05-21"
+compatibility_flags = ["nodejs_compat"]
+assets = { directory = "./public" }
+workers_dev = false
+
+[[routes]]
+pattern = "links.maesoser.me/*"
+zone_name = "maesoser.me"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "links-db"
+database_id = "c5fe8af6-9507-44f6-9130-c2b5890297ea"
+migrations_dir = "migrations"
+
+# Workers AI
+[ai]
+binding = "AI"
+
+# Browser Run (Kitesurf) for JS-rendered HTML extraction
+[browser]
+binding = "BROWSER"
+remote = true
+
+# Queue for async processing
+[[queues.producers]]
+binding = "LINK_QUEUE"
+queue = "link-processing-queue"
+
+[[queues.consumers]]
+queue = "link-processing-queue"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+
+[observability]
+enabled = true
+
+[observability.logs]
+head_sampling_rate = 1
+
+# Development environment
+[env.development]
+name = "links-dev"
+vars = { ENVIRONMENT = "development" }

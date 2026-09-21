@@ -1,0 +1,171 @@
+@source "../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+@import "@cloudflare/kumo/styles/tailwind";
+@import "tailwindcss";
+
+html {
+  min-height: 100dvh;
+}
+
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-kumo-canvas);
+  color: var(--text-color-kumo-default);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+.prose {
+  color: var(--text-color-kumo-default);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-weight: 600;
+  margin-top: 1.4em;
+  margin-bottom: 0.5em;
+  color: var(--text-color-kumo-strong);
+  line-height: 1.25;
+}
+
+.prose h1:first-child,
+.prose h2:first-child,
+.prose h3:first-child {
+  margin-top: 0;
+}
+
+.prose h1 {
+  font-size: 1.5em;
+}
+
+.prose h2 {
+  font-size: 1.25em;
+}
+
+.prose h3 {
+  font-size: 1.1em;
+}
+
+.prose p {
+  margin-bottom: 1em;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.prose li {
+  margin-bottom: 0.35em;
+}
+
+.prose strong {
+  font-weight: 500;
+}
+
+.prose code {
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 0.9em;
+  background: var(--color-kumo-recessed);
+  color: var(--text-color-kumo-subtle);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+.prose pre {
+  background: var(--color-kumo-recessed);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+  border: 1px solid var(--color-kumo-hairline);
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--text-color-kumo-default);
+}
+
+.prose blockquote {
+  padding: 8px 0 8px 16px;
+  margin: 16px 0;
+  color: var(--text-color-kumo-subtle);
+  border-left: 2px solid var(--color-kumo-brand);
+}
+
+.prose a {
+  color: var(--text-color-kumo-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--color-kumo-hairline);
+  margin: 1.5em 0;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.9em;
+}
+
+.prose th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--color-kumo-elevated);
+  border: 1px solid var(--color-kumo-hairline);
+  font-weight: 500;
+}
+
+.prose td {
+  padding: 8px 12px;
+  border: 1px solid var(--color-kumo-hairline);
+  color: var(--text-color-kumo-subtle);
+}
+
+@media (max-width: 640px) {
+  .prose pre,
+  .prose table {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .prose table {
+    display: block;
+  }
+}

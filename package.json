@@ -1,0 +1,47 @@
+{
+  "name": "links",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite build && wrangler dev",
+    "dev:ui": "vite",
+    "build": "vite build",
+    "deploy": "vite build && wrangler deploy",
+    "deploy:prod": "vite build && wrangler deploy --env production",
+    "db:create": "wrangler d1 create links-db",
+    "db:migrate": "wrangler d1 migrations apply links-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply links-db --remote",
+    "queue:create": "wrangler queues create link-processing-queue",
+    "logs": "wrangler tail",
+    "resummarize": "node scripts/resummarize-all.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260520.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/dompurify": "^3.0.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.0",
+    "wrangler": "^4.93.0"
+  },
+  "dependencies": {
+    "@cloudflare/kumo": "^2.14.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "agents": "^0.24.0",
+    "dompurify": "^3.4.5",
+    "lucide-react": "^1.47.0",
+    "marked": "^18.0.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  }
+}
