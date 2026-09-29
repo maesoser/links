@@ -278,6 +278,11 @@ async function createLink(request: Request, env: Env, ctx: ExecutionContext): Pr
     throw error;
   }
 
+  const initialTags = normalizeTags(body.tags);
+  if (initialTags.length > 0) {
+    await replaceTags(env, id, initialTags);
+  }
+
   try {
     await env.LINK_QUEUE.send({ linkId: id });
   } catch (queueError: unknown) {

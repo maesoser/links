@@ -40,6 +40,7 @@ export interface Link {
 export interface CreateLinkRequest {
   url: string;
   title?: string;
+  tags?: string[];
 }
 
 export interface UpdateLinkRequest {

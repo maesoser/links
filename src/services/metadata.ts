@@ -20,7 +20,15 @@ export async function extractMetadataFromHtml(html: string, url: string): Promis
 
   const meta: Record<string, string> = {};
   let titleText = '';
-  let faviconHref: string | null = null;
+
+  // Collect all candidate favicon tags so we can pick the best one afterward.
+  interface FaviconCandidate {
+    href: string;
+    rel: string;   // full rel attribute value
+    type: string;  // mime type hint, e.g. "image/png"
+    sizes: string; // e.g. "32x32"
+  }
+  const faviconCandidates: FaviconCandidate[] = [];
 
   await new HTMLRewriter()
     .on('title', {
@@ -41,7 +49,14 @@ export async function extractMetadataFromHtml(html: string, url: string): Promis
     })
     .on('link[rel~="icon"], link[rel~="shortcut"], link[rel~="apple-touch-icon"]', {
       element(el) {
-        if (!faviconHref) faviconHref = el.getAttribute('href') ?? null;
+        const href = el.getAttribute('href') ?? '';
+        if (!href) return;
+        faviconCandidates.push({
+          href,
+          rel:   (el.getAttribute('rel') ?? '').toLowerCase(),
+          type:  (el.getAttribute('type') ?? '').toLowerCase(),
+          sizes: (el.getAttribute('sizes') ?? '').toLowerCase(),
+        });
       }
     })
     .on('time[datetime]', {
@@ -68,7 +83,7 @@ export async function extractMetadataFromHtml(html: string, url: string): Promis
     publishedDate:
       meta['article:published_time'] || meta['publish_date'] || meta['publication_date'] || meta['datepublished'] || null,
     image: imageRaw ? resolveUrl(imageRaw, url) : null,
-    favicon: faviconHref ? resolveUrl(faviconHref, url) : `${urlObj.protocol}//${urlObj.host}/favicon.ico`,
+    favicon: pickBestFavicon(faviconCandidates, url),
     type: meta['og:type'] || null,
     domain,
   };
@@ -122,6 +137,60 @@ function cleanText(text: string): string {
   decoded = decoded.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
 
   return decoded.replace(/\s+/g, ' ').trim();
+}
+
+// Preferred MIME types for a favicon rendered at 16–32 px.
+// SVG is excluded because it can contain scripts and renders inconsistently
+// at tiny sizes. JPEG is excluded because it is lossy and rarely the
+// canonical favicon format — sites that publish a JPEG icon almost always
+// also publish a PNG or ICO version.
+const PREFERRED_TYPES = new Set(['image/x-icon', 'image/vnd.microsoft.icon', 'image/png', 'image/webp']);
+const PREFERRED_EXTS  = new Set(['.ico', '.png', '.webp']);
+const AVOIDED_EXTS    = new Set(['.jpg', '.jpeg', '.svg']);
+
+function pickBestFavicon(
+  candidates: Array<{ href: string; rel: string; type: string; sizes: string }>,
+  pageUrl: string,
+): string {
+  const urlObj = new URL(pageUrl);
+  const fallback = `${urlObj.protocol}//${urlObj.host}/favicon.ico`;
+
+  if (candidates.length === 0) return fallback;
+
+  // Score each candidate. Higher = better.
+  function score(c: { href: string; rel: string; type: string; sizes: string }): number {
+    let s = 0;
+
+    // Strongly prefer standard rel="icon" over apple-touch-icon / shortcut.
+    if (c.rel === 'icon' || c.rel === 'shortcut icon') s += 40;
+    else if (c.rel.includes('apple-touch-icon')) s += 10;
+
+    // Prefer known-good MIME types declared in the type attribute.
+    if (c.type && PREFERRED_TYPES.has(c.type)) s += 30;
+    // Penalise JPEG and SVG explicitly declared via type.
+    if (c.type === 'image/jpeg' || c.type === 'image/jpg') s -= 20;
+    if (c.type === 'image/svg+xml') s -= 10;
+
+    // Prefer known-good extensions inferred from the href.
+    const ext = c.href.split('?')[0].toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? '';
+    if (PREFERRED_EXTS.has(ext)) s += 20;
+    if (AVOIDED_EXTS.has(ext))   s -= 15;
+
+    // Prefer small/medium sizes (16, 32, 48) over large apple-touch ones (180+).
+    const sizeMatch = c.sizes.match(/(\d+)x(\d+)/);
+    if (sizeMatch) {
+      const dim = parseInt(sizeMatch[1], 10);
+      if (dim <= 48)       s += 15;
+      else if (dim <= 96)  s += 5;
+      else                 s -= 5;   // 180×180 apple-touch-icon, etc.
+    }
+
+    return s;
+  }
+
+  const best = candidates.reduce((a, b) => (score(a) >= score(b) ? a : b));
+  const resolved = resolveUrl(best.href, pageUrl);
+  return resolved || fallback;
 }
 
 function resolveUrl(relUrl: string, baseUrl: string): string {

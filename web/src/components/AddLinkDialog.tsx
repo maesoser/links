@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
-import { Button, Dialog, Input } from "@cloudflare/kumo";
+import { Button, Dialog, Input, TagInput } from "@cloudflare/kumo";
 import { Plus, X } from "lucide-react";
 
 interface AddLinkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (url: string) => Promise<boolean>;
+  onSave: (url: string, tags: string[]) => Promise<boolean>;
 }
 
 export function AddLinkDialog({ open, onOpenChange, onSave }: AddLinkDialogProps) {
   const [url, setUrl] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setUrl("");
+      setTags([]);
       setError("");
       setSaving(false);
     }
@@ -39,7 +41,7 @@ export function AddLinkDialog({ open, onOpenChange, onSave }: AddLinkDialogProps
     }
 
     setSaving(true);
-    const ok = await onSave(rawUrl);
+    const ok = await onSave(rawUrl, tags);
     setSaving(false);
     if (ok) onOpenChange(false);
   }
@@ -65,24 +67,33 @@ export function AddLinkDialog({ open, onOpenChange, onSave }: AddLinkDialogProps
         <Dialog.Description className="sr-only">
           Paste a URL to save it for later.
         </Dialog.Description>
-        <Input
-          type="url"
-          label="URL"
-          placeholder="https://example.com/article"
-          value={url}
-          error={error || undefined}
-          onValueChange={(value) => {
-            setUrl(value);
-            setError("");
-          }}
-          autoFocus
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void handleSave();
-            }
-          }}
-        />
+        <div className="flex flex-col gap-4">
+          <Input
+            type="url"
+            label="URL"
+            placeholder="https://example.com/article"
+            value={url}
+            error={error || undefined}
+            onValueChange={(value) => {
+              setUrl(value);
+              setError("");
+            }}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleSave();
+              }
+            }}
+          />
+          <TagInput
+            label="Tags"
+            placeholder="Add a tag"
+            maxValues={12}
+            value={tags}
+            onValueChange={setTags}
+          />
+        </div>
         <div className="mt-6 flex justify-end gap-2">
           <Dialog.Close
             render={(props) => (

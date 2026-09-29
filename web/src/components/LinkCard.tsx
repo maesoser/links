@@ -50,9 +50,21 @@ export function LinkCard({
 }: LinkCardProps) {
   const [tagsOpen, setTagsOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const faviconUrl =
-    link.favicon_url ||
-    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.domain || "")}`;
+
+  const googleFaviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.domain || link.url)}&sz=32`;
+  const faviconUrl = link.favicon_url || googleFaviconUrl;
+
+  function handleFaviconError(e: React.SyntheticEvent<HTMLImageElement>) {
+    const img = e.currentTarget;
+    if (img.src !== googleFaviconUrl) {
+      // First failure: stored favicon_url was broken — try Google S2.
+      img.src = googleFaviconUrl;
+    } else {
+      // Second failure: Google S2 also failed — hide the element.
+      img.style.display = "none";
+    }
+  }
+
   const failed = link.processing_status === "failed";
   const isPdf = Boolean(link.is_pdf);
   const isProcessed = Boolean(link.scraped_at || link.metadata_extracted_at || isPdf);
@@ -98,9 +110,7 @@ export function LinkCard({
                 className="mt-0.5 size-4 shrink-0 rounded-sm opacity-80"
                 src={faviconUrl}
                 alt=""
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
+                onError={handleFaviconError}
               />
               <div className="min-w-0 flex-1">
                 <div className="line-clamp-2">
