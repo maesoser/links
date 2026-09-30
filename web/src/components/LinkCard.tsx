@@ -51,17 +51,37 @@ export function LinkCard({
   const [tagsOpen, setTagsOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const googleFaviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(link.domain || link.url)}&sz=32`;
-  const faviconUrl = link.favicon_url || googleFaviconUrl;
+  const domain = link.domain || new URL(link.url).hostname;
+  const ddgFaviconUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+
+  // If the stored favicon_url is just the guessed /favicon.ico fallback
+  // (no explicit path was found in the page's <link> tags), skip it and
+  // go straight to DuckDuckGo to avoid a wasted failing request.
+  const isGuessedFallback =
+    !link.favicon_url ||
+    link.favicon_url === `https://${domain}/favicon.ico` ||
+    link.favicon_url === `http://${domain}/favicon.ico`;
+  const faviconUrl = isGuessedFallback ? ddgFaviconUrl : link.favicon_url;
+
+  // Generate a letter-avatar SVG as a data URI — used as the final fallback.
+  // DuckDuckGo always returns something, but this covers offline / CDN failures.
+  function letterFaviconDataUri(d: string): string {
+    const letter = (d[0] ?? "?").toUpperCase();
+    const hue = [...d].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+    const bg = `hsl(${hue},55%,45%)`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" fill="${bg}"/><text x="8" y="12" font-size="10" font-family="sans-serif" fill="#fff" text-anchor="middle">${letter}</text></svg>`;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+  }
 
   function handleFaviconError(e: React.SyntheticEvent<HTMLImageElement>) {
     const img = e.currentTarget;
-    if (img.src !== googleFaviconUrl) {
-      // First failure: stored favicon_url was broken — try Google S2.
-      img.src = googleFaviconUrl;
+    if (img.src !== ddgFaviconUrl) {
+      // First failure: stored favicon_url was broken — try DuckDuckGo CDN.
+      img.src = ddgFaviconUrl;
     } else {
-      // Second failure: Google S2 also failed — hide the element.
-      img.style.display = "none";
+      // Second failure: DuckDuckGo also failed (e.g. offline) — use letter avatar.
+      img.src = letterFaviconDataUri(domain);
+      img.onerror = null; // data URI can never fail; stop the error chain.
     }
   }
 
