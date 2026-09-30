@@ -1,5 +1,5 @@
 import { Badge, Button, Dialog, Link, Tabs, Text } from "@cloudflare/kumo";
-import { FileText, RefreshCw, X } from "lucide-react";
+import { ExternalLink, FileText, RefreshCw, X } from "lucide-react";
 import type { LinkItem } from "../types";
 import { formatDate, formatReadingTime } from "../lib/format";
 import { markdownToHtml } from "../lib/markdown";
@@ -25,6 +25,7 @@ export function ReaderDialog({
 }: ReaderDialogProps) {
   const isPdf = Boolean(link?.is_pdf);
   const failed = link?.processing_status === "failed";
+  const tags = link?.tags ?? [];
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -34,51 +35,74 @@ export function ReaderDialog({
       >
         <div className="flex items-start justify-between gap-3 border-b border-kumo-hairline p-4 sm:p-5">
           <div className="min-w-0 flex-1">
+            {/* Title */}
             <Dialog.Title className="text-xl font-semibold leading-snug">
               {link?.title || "Untitled"}
             </Dialog.Title>
             <Dialog.Description className="sr-only">
               Article reader
             </Dialog.Description>
+
             {link ? (
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <Badge
-                  variant={link.status === "unread" ? "info" : "neutral"}
-                  appearance="dot"
-                >
-                  {link.status === "unread" ? "Unread" : "Read"}
-                </Badge>
-                {isPdf ? (
-                  <Badge variant="info" icon={<FileText size={12} />}>PDF</Badge>
-                ) : null}
-                {failed ? (
-                  <Badge variant="error" appearance="dot">Failed</Badge>
-                ) : null}
-                {link.reading_time_minutes ? (
-                  <Text variant="secondary" size="sm" as="span">
-                    {formatReadingTime(link.reading_time_minutes)}
+              <div className="mt-2 flex flex-col gap-1.5">
+                {/* Row 1: site/author subtitle */}
+                {(link.site_name || link.author) ? (
+                  <Text variant="secondary" size="sm" as="p">
+                    {link.site_name ?? ""}
+                    {link.site_name && link.author ? " · " : ""}
+                    {link.author ? `by ${link.author}` : ""}
                   </Text>
                 ) : null}
-                {link.created_at ? (
-                  <Text variant="secondary" size="sm" as="span">
-                    Added {formatDate(link.created_at)}
-                  </Text>
+
+                {/* Row 2: status badges + reading time + date */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge
+                    variant={link.status === "unread" ? "info" : "neutral"}
+                    appearance="dot"
+                  >
+                    {link.status === "unread" ? "Unread" : "Read"}
+                  </Badge>
+                  {isPdf ? (
+                    <Badge variant="info" icon={<FileText size={12} />}>PDF</Badge>
+                  ) : null}
+                  {failed ? (
+                    <Badge variant="error" appearance="dot">Failed</Badge>
+                  ) : null}
+                  {link.reading_time_minutes ? (
+                    <Text variant="secondary" size="sm" as="span">
+                      {formatReadingTime(link.reading_time_minutes)}
+                    </Text>
+                  ) : null}
+                  {link.created_at ? (
+                    <Text variant="secondary" size="sm" as="span">
+                      Added {formatDate(link.created_at)}
+                    </Text>
+                  ) : null}
+                </div>
+
+                {/* Row 3: tags (only if any) */}
+                {tags.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {tags.map((tag) => (
+                      <Badge key={tag} variant="outline">{tag}</Badge>
+                    ))}
+                  </div>
                 ) : null}
-                {(link.tags ?? []).map((tag) => (
-                  <Badge key={tag} variant="outline">{tag}</Badge>
-                ))}
-                <Link
+
+                {/* Row 4: URL — full width, own line */}
+                <a
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  variant="plain"
-                  className="max-w-full truncate font-mono text-xs text-kumo-subtle"
+                  className="flex min-w-0 items-center gap-1.5 text-kumo-subtle hover:text-kumo-default transition-colors"
                 >
-                  {link.url}
-                </Link>
+                  <ExternalLink size={12} className="shrink-0" />
+                  <span className="truncate font-mono text-xs">{link.url}</span>
+                </a>
               </div>
             ) : null}
           </div>
+
           <div className="flex shrink-0 gap-1">
             <Dialog.Close
               aria-label="Close"
