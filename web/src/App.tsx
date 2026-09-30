@@ -102,7 +102,7 @@ export default function App() {
   const toast = useKumoToastManager();
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
   const [online, setOnline] = useState(navigator.onLine);
-  const [filter, setFilter] = useState<FilterValue>("all");
+  const [filter, setFilter] = useState<FilterValue>("unread");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -743,7 +743,6 @@ export default function App() {
             { value: "unread", label: "Unread" },
             { value: "read", label: "Read" },
             { value: "starred", label: "Starred" },
-            { value: "failed", label: "Failed" },
           ]}
         />
         <InputGroup size="sm" className="min-w-0 flex-1 basis-40">

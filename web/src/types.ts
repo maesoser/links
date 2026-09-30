@@ -25,6 +25,6 @@ export interface LinkItem {
   processing_error?: string | null;
 }
 
-export type FilterValue = "all" | "unread" | "read" | "starred" | "failed";
+export type FilterValue = "all" | "unread" | "read" | "starred";
 export type ThemeMode = "light" | "dark";
 export type BulkAction = "read" | "unread" | "delete" | "resummarize" | "star" | "unstar";
