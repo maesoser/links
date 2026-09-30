@@ -7,6 +7,7 @@ export interface Env {
   AI: Ai;
   BROWSER: BrowserRun;
   LINK_QUEUE: Queue;
+  ASSETS: Fetcher;
   ENVIRONMENT: string;
 }
 

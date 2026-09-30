@@ -29,7 +29,7 @@ import {
 import type { BulkAction, FilterValue, LinkItem, ThemeMode } from "./types";
 import { AddLinkDialog } from "./components/AddLinkDialog";
 import { LinkCard } from "./components/LinkCard";
-import { ReaderDialog } from "./components/ReaderDialog";
+import { ReaderView } from "./components/ReaderView";
 
 const PAGE_SIZE = 50;
 // Minimum ms between background refreshes triggered by tab focus.
@@ -127,7 +127,6 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [readerLink, setReaderLink] = useState<LinkItem | null>(null);
-  const [readerTab, setReaderTab] = useState<"summary" | "article">("summary");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const listRef = useRef<HTMLElement>(null);
@@ -322,6 +321,59 @@ export default function App() {
   }
 
   // ---------------------------------------------------------------------------
+  // Reader navigation + URL routing
+  // ---------------------------------------------------------------------------
+
+  function openReader(link: LinkItem) {
+    setReaderLink(link);
+    window.history.pushState({ articleId: link.id }, "", `/article/${link.id}`);
+  }
+
+  function closeReader() {
+    setReaderLink(null);
+    window.history.pushState({}, "", "/");
+  }
+
+  // Handle browser back/forward.
+  useEffect(() => {
+    const onPop = () => {
+      const match = window.location.pathname.match(/^\/article\/([^/]+)$/);
+      if (match) {
+        const id = match[1];
+        const found = links.find((l) => l.id === id) ?? null;
+        setReaderLink(found);
+        // If the link isn't in the current list (e.g. different filter), fetch it.
+        if (!found) {
+          fetch(`/api/links/${id}`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((data: LinkItem | null) => {
+              if (data) setReaderLink({ ...data, tags: data.tags ?? [], starred: Number(data.starred) || 0, is_pdf: Number(data.is_pdf) || 0 });
+            })
+            .catch(() => {});
+        }
+      } else {
+        setReaderLink(null);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [links]);
+
+  // On first load, check if the URL is already an /article/:id deep link.
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/article\/([^/]+)$/);
+    if (!match) return;
+    const id = match[1];
+    fetch(`/api/links/${id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: LinkItem | null) => {
+        if (data) setReaderLink({ ...data, tags: data.tags ?? [], starred: Number(data.starred) || 0, is_pdf: Number(data.is_pdf) || 0 });
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Mutations
   // ---------------------------------------------------------------------------
 
@@ -476,7 +528,7 @@ export default function App() {
       if (removed.status === "read") setReadCount((c) => Math.max(0, c - 1));
       if (removed.starred) setStarredCount((c) => Math.max(0, c - 1));
     }
-    if (readerLink?.id === id) setReaderLink(null);
+    if (readerLink?.id === id) closeReader();
     setSelected((prev) => {
       const next = new Set(prev);
       next.delete(id);
@@ -666,7 +718,11 @@ export default function App() {
     <div className="flex h-dvh flex-col bg-kumo-canvas text-kumo-default">
       <header className="flex shrink-0 items-center gap-3 border-b border-kumo-hairline bg-kumo-base px-4 pt-[env(safe-area-inset-top,0px)]">
         <div className="flex min-h-12 flex-1 items-center gap-3">
-          <div className="flex items-center gap-2">
+          <div
+            className={`flex items-center gap-2 ${readerLink ? "cursor-pointer" : ""}`}
+            onClick={readerLink ? closeReader : undefined}
+            title={readerLink ? "Back to articles" : undefined}
+          >
             <LinkIcon size={18} className="text-kumo-brand" />
             <Text variant="heading" as="h1">
               Links
@@ -719,158 +775,156 @@ export default function App() {
         </div>
       </header>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-kumo-hairline bg-kumo-base px-4 py-2">
-        <Button
-          variant="primary"
-          size="sm"
-          shape="square"
-          icon={<Plus size={16} />}
-          aria-label="Add link"
-          title="Add link"
-          onClick={() => setAddOpen(true)}
+      {readerLink ? (
+        <ReaderView
+          link={readerLink}
+          onBack={closeReader}
+          onRetry={handleRetry}
         />
-        <Tabs
-          variant="segmented"
-          size="sm"
-          className="shrink-0"
-          value={filter}
-          onValueChange={(value) => {
-            setFilter(value as FilterValue);
-            setSearch("");
-          }}
-          tabs={[
-            { value: "all", label: "All" },
-            { value: "unread", label: "Unread" },
-            { value: "read", label: "Read" },
-            { value: "starred", label: "Starred" },
-          ]}
-        />
-        <InputGroup size="sm" className="min-w-0 flex-1 basis-40">
-          <InputGroup.Addon>
-            <Search size={16} />
-          </InputGroup.Addon>
-          <InputGroup.Input
-            type="search"
-            placeholder="Search..."
-            aria-label="Search links"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </InputGroup>
-      </div>
+      ) : (
+        <>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-kumo-hairline bg-kumo-base px-4 py-2">
+            <Button
+              variant="primary"
+              size="sm"
+              shape="square"
+              icon={<Plus size={16} />}
+              aria-label="Add link"
+              title="Add link"
+              onClick={() => setAddOpen(true)}
+            />
+            <Tabs
+              variant="segmented"
+              size="sm"
+              className="shrink-0"
+              value={filter}
+              onValueChange={(value) => {
+                setFilter(value as FilterValue);
+                setSearch("");
+              }}
+              tabs={[
+                { value: "all", label: "All" },
+                { value: "unread", label: "Unread" },
+                { value: "read", label: "Read" },
+                { value: "starred", label: "Starred" },
+              ]}
+            />
+            <InputGroup size="sm" className="min-w-0 flex-1 basis-40">
+              <InputGroup.Addon>
+                <Search size={16} />
+              </InputGroup.Addon>
+              <InputGroup.Input
+                type="search"
+                placeholder="Search..."
+                aria-label="Search links"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </InputGroup>
+          </div>
 
-      {selectionMode ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-kumo-hairline bg-kumo-base px-4 py-2">
-          <Text size="sm" as="span">{selected.size} selected</Text>
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="square"
-            icon={<Check size={16} />}
-            aria-label="Mark read"
-            title="Mark read"
-            onClick={() => void handleBulk("read")}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="square"
-            icon={<RotateCcw size={16} />}
-            aria-label="Mark unread"
-            title="Mark unread"
-            onClick={() => void handleBulk("unread")}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="square"
-            icon={<Star size={16} />}
-            aria-label="Star"
-            title="Star"
-            onClick={() => void handleBulk("star")}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="square"
-            icon={<RefreshCw size={16} />}
-            aria-label="Re-summarize"
-            title="Re-summarize"
-            onClick={() => void handleBulk("resummarize")}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="square"
-            icon={<Trash2 size={16} />}
-            aria-label="Delete"
-            title="Delete"
-            onClick={() => void handleBulk("delete")}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="square"
-            icon={<X size={16} />}
-            aria-label="Clear selection"
-            title="Clear selection"
-            onClick={() => setSelected(new Set())}
-          />
-        </div>
-      ) : null}
+          {selectionMode ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-kumo-hairline bg-kumo-base px-4 py-2">
+              <Text size="sm" as="span">{selected.size} selected</Text>
+              <Button
+                variant="ghost"
+                size="sm"
+                shape="square"
+                icon={<Check size={16} />}
+                aria-label="Mark read"
+                title="Mark read"
+                onClick={() => void handleBulk("read")}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                shape="square"
+                icon={<RotateCcw size={16} />}
+                aria-label="Mark unread"
+                title="Mark unread"
+                onClick={() => void handleBulk("unread")}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                shape="square"
+                icon={<Star size={16} />}
+                aria-label="Star"
+                title="Star"
+                onClick={() => void handleBulk("star")}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                shape="square"
+                icon={<RefreshCw size={16} />}
+                aria-label="Re-summarize"
+                title="Re-summarize"
+                onClick={() => void handleBulk("resummarize")}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                shape="square"
+                icon={<Trash2 size={16} />}
+                aria-label="Delete"
+                title="Delete"
+                onClick={() => void handleBulk("delete")}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                shape="square"
+                icon={<X size={16} />}
+                aria-label="Clear selection"
+                title="Clear selection"
+                onClick={() => setSelected(new Set())}
+              />
+            </div>
+          ) : null}
 
-      <main ref={listRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto flex max-w-3xl flex-col gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {links.length === 0 ? (
-            emptyState
-          ) : (
-            <>
-              {links.map((link) => (
-                <LinkCard
-                  key={link.id}
-                  link={link}
-                  selected={selected.has(link.id)}
-                  selectionMode={selectionMode}
-                  onOpen={(id) => {
-                    const found = links.find((item) => item.id === id) ?? null;
-                    setReaderLink(found);
-                    setReaderTab(found?.is_pdf ? "article" : "summary");
-                  }}
-                  onToggle={handleToggle}
-                  onDelete={handleDelete}
-                  onStar={handleStar}
-                  onRetry={handleRetry}
-                  onTagsChange={handleTagsChange}
-                  onSelect={toggleSelect}
-                />
-              ))}
-              {remaining > 0 ? (
-                <div className="flex justify-center py-4">
-                  <Button variant="secondary" onClick={() => void fetchLinks(true, offset)}>
-                    Load more
-                    <Text variant="secondary" size="xs" as="span">
-                      {remaining} remaining
-                    </Text>
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      </main>
+          <main ref={listRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="mx-auto flex max-w-3xl flex-col gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {links.length === 0 ? (
+                emptyState
+              ) : (
+                <>
+                  {links.map((link) => (
+                    <LinkCard
+                      key={link.id}
+                      link={link}
+                      selected={selected.has(link.id)}
+                      selectionMode={selectionMode}
+                      onOpen={(id) => {
+                        const found = links.find((item) => item.id === id) ?? null;
+                        if (found) openReader(found);
+                      }}
+                      onToggle={handleToggle}
+                      onDelete={handleDelete}
+                      onStar={handleStar}
+                      onRetry={handleRetry}
+                      onTagsChange={handleTagsChange}
+                      onSelect={toggleSelect}
+                    />
+                  ))}
+                  {remaining > 0 ? (
+                    <div className="flex justify-center py-4">
+                      <Button variant="secondary" onClick={() => void fetchLinks(true, offset)}>
+                        Load more
+                        <Text variant="secondary" size="xs" as="span">
+                          {remaining} remaining
+                        </Text>
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </main>
+        </>
+      )}
 
       <AddLinkDialog open={addOpen} onOpenChange={setAddOpen} onSave={handleSave} />
-      <ReaderDialog
-        link={readerLink}
-        open={Boolean(readerLink)}
-        tab={readerTab}
-        onTabChange={setReaderTab}
-        onRetry={handleRetry}
-        onRefetch={handleRetry}
-        onOpenChange={(open) => {
-          if (!open) setReaderLink(null);
-        }}
-      />
     </div>
   );
 }

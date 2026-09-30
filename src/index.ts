@@ -105,6 +105,13 @@ export default {
         });
       }
 
+      // Client-side routes: serve the SPA shell so the app can hydrate.
+      if (path.startsWith('/article/')) {
+        // Let the assets binding serve the root index.html.
+        const indexRequest = new Request(new URL('/', request.url).toString(), request);
+        return env.ASSETS.fetch(indexRequest);
+      }
+
       // Static assets are served automatically via the assets binding in wrangler.toml
       return new Response(null, { status: 404 });
     } catch (error) {
